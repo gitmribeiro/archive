@@ -8,8 +8,6 @@ import snapshotService from '../../services/snapshot.service';
  */
 class Plan {
 
-    private plan: any;
-
     constructor() {
         this.schedule();
     }
@@ -43,10 +41,8 @@ class Plan {
                 throw Error('Nenhum plano ativo foi passado para ser executado!');
             }
             
-            this.plan = plan;
+            await snapshotService.execute(plan);
 
-            await snapshotService.execute(this.plan);
-            
         } catch (err) {
             logger.error(err.message);
         }

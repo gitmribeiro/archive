@@ -59,8 +59,8 @@ class SnapshotService {
                         if (fs.existsSync(srcFile)) {
                             const statFile = fs.statSync(srcFile);
                             
-                            // armazenamento: path | id | creationDate | size
-                            writeSnapshotStream.write(`${srcFile}|${statFile.dev + statFile.ino}|${statFile.atimeMs}|${statFile.size}\n`, 'utf8');
+                            // armazenamento: path | id | atime | mtime | size
+                            writeSnapshotStream.write(`${srcFile}|${statFile.dev + statFile.ino}|${statFile.atimeMs}|${statFile.mtimeMs}|${statFile.size}\n`, 'utf8');
                         }
                     });
         
