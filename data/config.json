@@ -1,0 +1,22 @@
+{
+	"module" : {
+		"name" : "wttarchive",
+		"description" : "WTT - Backup Server",
+		"version" : "1.0.0"
+	},
+	"service" : {
+		"port" : 3000,
+		"networkid" : "demo",
+		"log" : "warn"
+	},
+	"drive" : {
+		"maxFreeSpace" : 60,
+		"scheduleTime" : "18:00-06:00"
+	},
+	"provider" : {
+		"s3" : {
+			"credential" : "c75c6ff8374699ec4f62ca0c8bdbe0ad32bdf3ef46fb3ffca579d55d579288beda25e11d4f63820a1fadd7a3c58dd66a35890d5c9932259b472c1a2393b132ba",
+			"region" : "sa-east-1"
+		}
+	}
+}
