@@ -1,8 +1,6 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import * as cron from 'node-cron';
 
-import logger from '../services/logger.service';
 import utils from './utils.service';
 
 
@@ -53,7 +51,7 @@ class PlanService {
                 {
                     path: 'C:/folder/to/backup',
                     search: '*.*',
-                    storagepath: "dicom",
+                    storagepath: 'dicom',
                     type: 'diff',
                     compression: {
                         dicom: 'lossless',

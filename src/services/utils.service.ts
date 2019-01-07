@@ -4,6 +4,8 @@ import * as crypto from 'crypto';
 import * as cp from 'child_process';
 import * as readline from 'readline';
 
+import logger from './logger.service';
+
 
 /**
  * Classe com metodos utilitarios
@@ -11,7 +13,8 @@ import * as readline from 'readline';
 class Utils {
 
     private _CFG: any;
-
+    private idle = true;
+    
     constructor() {}
 
 
@@ -35,6 +38,14 @@ class Utils {
             this._CFG = cfg;
         }
         return this._CFG;
+    }
+
+
+    public isIdle(idle: boolean) {
+        if (idle) {
+            this.idle = idle;
+        }
+        return this.idle;
     }
 
     
@@ -67,7 +78,7 @@ class Utils {
         var oldFile = fs.createReadStream(src);
         var newFile = fs.createWriteStream(dest);
         oldFile.pipe(newFile);
-    };
+    }
 
     
     public async copyDirRecursiveSync(src: string, dest: string) {
@@ -94,17 +105,17 @@ class Utils {
     }
 
     
-    public async deleteFolderRecursive(path: string): Promise<any> {
+    public async deleteFolderRecursive(strpath: string): Promise<any> {
         try {
-            if (fs.existsSync(path)) {
-                for (let entry of await fs.readdirSync(path, 'utf8')) {
-                    const curPath = path + "/" + entry;
+            if (fs.existsSync(strpath)) {
+                for (let entry of await fs.readdirSync(strpath, 'utf8')) {
+                    const curPath = `${strpath}/${entry}`;
                     if ((await fs.lstatSync(curPath)).isDirectory())
                         await this.deleteFolderRecursive(curPath);
                     else
                         await fs.unlinkSync(curPath);
                 }
-                await fs.rmdirSync(path);
+                await fs.rmdirSync(strpath);
             }
         } catch (err) {
             return err;
@@ -150,7 +161,7 @@ class Utils {
     public sleep(ms: number){
         return new Promise(resolve => {
             setTimeout(resolve, ms);
-        })
+        });
     }
 
     public readFileStream(filePath: string) {
@@ -161,7 +172,7 @@ class Utils {
         });
 
         rl.on('line', async function (filePath) {
-            // TODO
+            logger.info(filePath);
         });
 
         rl.on('close', async function () {

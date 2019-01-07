@@ -1,16 +1,14 @@
-import * as fs from 'fs';
-import * as path from 'path';
-import * as cron from 'node-cron';
-
 import logger from '../../services/logger.service';
-import utils from '../../services/utils.service';
 import planService from '../../services/plan.service';
+import snapshotService from '../../services/snapshot.service';
 
 
 /**
  * Classe responsável pelo snapshot e geração dos metadados dos arquivos
  */
 class Plan {
+
+    private plan: any;
 
     constructor() {
         this.schedule();
@@ -22,14 +20,15 @@ class Plan {
      */
     public async schedule() {
 
+        // TODO: implementar cron para agendar os planos!
+
         const plans = await planService.getAll();
-        // console.log(plans);
 
         if (plans && plans.length > 0) {
             await this.execute(plans[0]);
         }
 
-        logger.info('Todos os planos foram agendados!');
+        logger.debug('Todos os planos foram agendados!');
     }
 
 
@@ -40,26 +39,16 @@ class Plan {
     private async execute(plan: any) {
         try {
 
-            let snapshotFile = path.normalize(`${utils.getDataPath()}/plans/snapshots/${plan.id}`);
-
-            await utils.mkdirRecursiveSync(path.dirname(snapshotFile));
-
-            for (let source of plan.sources) {
-                
-                let sourcePath = path.normalize(source.path + '/' + source.search);
-    
-                if (fs.existsSync(path.dirname(sourcePath))) {
-    
-                    await utils.cmdExec(`dir "${sourcePath}" /A-D /B /S > ${snapshotFile} 2>&1`);
-                    
-                    fs.renameSync(snapshotFile, `${snapshotFile}.snap`);
-                    
-                } else {
-                    throw Error('O source do plano nao foi localizado!');
-                }
+            if (!plan) {
+                throw Error('Nenhum plano ativo foi passado para ser executado!');
             }
+            
+            this.plan = plan;
+
+            await snapshotService.execute(this.plan);
+            
         } catch (err) {
-            logger.error('Ocorreu um erro não esperado! Error: ' + err.message);
+            logger.error(err.message);
         }
     }
 

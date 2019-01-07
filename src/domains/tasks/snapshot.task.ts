@@ -1,5 +1,4 @@
 import * as fs from 'fs';
-import * as path from 'path';
 import * as cron from 'node-cron';
 import * as readdir from 'readdir-enhanced';
 import * as readline from 'readline';
@@ -72,8 +71,7 @@ class Snapshot {
                 });
     
                 rl.on('line', async function (line: any) {
-                    console.log(line);
-                    
+                    logger.info(line);
                     // fs.writeFileSync(`${path.dirname(snapshotFile)}/teste/${i+1}.txt`, line, 'utf8');
                     // console.log(path.dirname(snapshotFile));
                     

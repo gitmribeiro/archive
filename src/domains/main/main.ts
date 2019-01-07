@@ -1,11 +1,8 @@
-import * as fs from 'fs';
 import * as path from 'path';
 import * as cp from 'child_process';
-import * as readline from 'readline';
 
 import logger from '../../services/logger.service';
 import config from '../../services/config.service';
-import utils from '../../services/utils.service';
 
 
 /**
@@ -18,7 +15,7 @@ class Main {
     private planProcess: cp.ChildProcess;
 
     constructor() {
-        this.createSubProcess();
+        this.createChildProcess();
     }
 
 
@@ -36,22 +33,22 @@ class Main {
      * Executa processos separados para o drive, snapshot e plans, deixando o processo principal
      * para o servidor express (APIs)
      */
-    private createSubProcess() {
-        this.driveProcess = cp.fork(path.normalize(`${__dirname}/../tasks/drive.task`));
-        this.snapshotProcess = cp.fork(path.normalize(`${__dirname}/../tasks/snapshot.task`));
+    private createChildProcess() {
+        // this.driveProcess = cp.fork(path.normalize(`${__dirname}/../tasks/drive.task`));
+        // this.snapshotProcess = cp.fork(path.normalize(`${__dirname}/../tasks/snapshot.task`));
         this.planProcess = cp.fork(path.normalize(`${__dirname}/../tasks/plan.task`));
 
-        this.eventSubProcess();
+        this.eventChildProcess();
     }
 
 
     /**
      * Registra eventos recebidos dos processos filhos
      */
-    private eventSubProcess() {
-        this.driveProcess.on('message', (msg) => { logger.info(msg) });
-        this.snapshotProcess.on('message', (msg) => { logger.info(msg) });
-        this.planProcess.on('message', (msg) => { logger.info(msg) });
+    private eventChildProcess() {
+        // this.driveProcess.on('message', (msg: string) => { logger.info(msg) });
+        // this.snapshotProcess.on('message', (msg: string) => { logger.info(msg) });
+        this.planProcess.on('message', (msg: string) => { logger.info(msg); });
     }
 
 
@@ -60,7 +57,7 @@ class Main {
      */
     private async run() {
 
-        logger.info('Run!');
+        // logger.info('Run!');
 
         // console.log(utils.CFG());
         
