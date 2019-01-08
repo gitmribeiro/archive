@@ -21,7 +21,7 @@ class Snapshot {
      * Agenda leitura dos arquivos em snapshots
      */
     public schedule() {
-        cron.schedule('*/5 * * * * *', async () => {
+        cron.schedule('* * * * * *', async () => {
             this.execute()
         });
     }

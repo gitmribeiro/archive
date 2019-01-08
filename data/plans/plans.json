@@ -9,7 +9,7 @@
 		},
 		"sources" : [
 			{
-				"path" : "C:/Users/marcelo.ribeiro/Desktop/1.2.392.200036.9116.2.6.1.37.2423319922.1523857820.50111/TESTE1",
+				"path" : "C:/Users/admin/Desktop/DICOM/CT",
 				"search" : "*.*",
 				"storagepath": "dicom",
 				"type" : "diff",

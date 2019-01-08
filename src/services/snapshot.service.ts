@@ -40,7 +40,7 @@ class SnapshotService {
                     // fs.unlinkSync(`${utils.getDataPath()}/plans/snapshots/${snapshotFile}`);
 
                     // gera arquivo snap para escrita
-                    const writeSnapshotStream = this.createSnapshotFileStream(plan);
+                    const snapshotStream = this.createSnapshotFileStream(plan);
 
                     // executa snapshot por comando do SO
                     // TODO: implementar para diferentes plataformas (se necessario)
@@ -59,8 +59,16 @@ class SnapshotService {
                         if (fs.existsSync(srcFile)) {
                             const statFile = fs.statSync(srcFile);
                             
-                            // armazenamento: path | id | atime | mtime | size
-                            writeSnapshotStream.write(`${srcFile}|${statFile.dev + statFile.ino}|${statFile.atimeMs}|${statFile.mtimeMs}|${statFile.size}\n`, 'utf8');
+                            let line = `${srcFile}|${statFile.dev + statFile.ino}|${statFile.atimeMs}|${statFile.mtimeMs}|${statFile.size}\n`;
+
+                            // fields: path | id | atime | mtime | size
+                            if (source.type.toLowerCase() === 'diff') {
+                                if (await this.changedFile(line)) {
+                                    snapshotStream.write(line, 'utf8');
+                                }
+                            } else {
+                                snapshotStream.write(line, 'utf8');
+                            }
                         }
                     });
         
@@ -70,7 +78,7 @@ class SnapshotService {
         
                     rl.on('close', async function () {
                         logger.debug('Todos os arquivos do path planejado foram lidos e o snapshot foi finalizado.');
-                        writeSnapshotStream.end();
+                        snapshotStream.end();
                     });
                     
                 } else {
@@ -97,6 +105,15 @@ class SnapshotService {
         });
 
         return writeStream;
+    }
+
+
+    private async changedFile(line: string) {
+        try {
+            // TODO
+        } catch (err) {
+            logger.error(err);
+        }
     }
 
 }
