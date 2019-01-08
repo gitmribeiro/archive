@@ -179,6 +179,32 @@ class Utils {
             // TODO
         });
     }
+
+    public async checksum(filePath: string, size: number = 32) {
+        return new Promise((resolve) => {
+            return resolve(crypto.createHash('md5')
+            .update(fs.readFileSync(filePath, { encoding: 'utf8' }), 'utf8')
+            .digest('hex')
+            .slice(0, size));
+        });
+    }
+
+    public async checksumBigfile(filePath: string) {
+        return new Promise((resolve) => {
+            try {
+                const hash = crypto.createHash('sha1');
+                const stream = fs.createReadStream(filePath);
+                stream.on('data', function(data) {
+                    hash.update(data, 'utf8');
+                });
+                stream.on('end', function() {
+                    return resolve(hash.digest('hex'));
+                });
+            } catch (err) {
+                return resolve(null);
+            }
+        });
+    }
     
 }
 

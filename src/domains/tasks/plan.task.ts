@@ -26,7 +26,7 @@ class Plan {
             await this.execute(plans[0]);
         }
 
-        logger.debug('Todos os planos foram agendados!');
+        logger.debug('[OK] Todos os planos foram agendados com sucesso.');
     }
 
 
@@ -38,7 +38,7 @@ class Plan {
         try {
 
             if (!plan) {
-                throw Error('Nenhum plano ativo foi passado para ser executado!');
+                throw Error('[X] Nenhum plano ativo foi localizado para ser executado.');
             }
             
             await snapshotService.execute(plan);
