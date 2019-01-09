@@ -33,7 +33,7 @@ class SnapshotService {
             await utils.mkdirRecursiveSync(path.dirname(plan.snapshotfile));
             
             // gera arquivo snapshot para escrita por stream
-            const snapshotStream = fs.createWriteStream(plan.snapshotfile);
+            const snapshotStream = fs.createWriteStream(plan.snapshotfile, { encoding: "utf8" });
 
             for (let source of plan.sources) {
 
@@ -47,8 +47,7 @@ class SnapshotService {
                     const rl = readline.createInterface({
                         input: snap.stdout,
                         terminal: false,
-                        historySize: 0,
-                        crlfDelay: Infinity
+                        historySize: 0
                     });
 
                     rl.on('line', async (srcFile: any) => {
@@ -80,6 +79,7 @@ class SnapshotService {
                         logger.debug('[OK] O arquivo do snapshot foi gerado com sucesso, em instantes ele sera processado.');
                         // snapshotStream.end();
                     });
+
                 } else {
                     throw Error('[X] O source do plano nao foi localizado!');
                 }
@@ -116,7 +116,7 @@ class SnapshotService {
                 if (fs.existsSync(metadataPath)) {
                     const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
 
-                    if (snapshotData.size == metadata.size && snapshotData.creation == metadata.creation && snapshotData.hash == metadata.hash) {
+                    if (snapshotData.size == metadata.size && snapshotData.modified == metadata.modified && snapshotData.hash == metadata.hash) {
                         return resolve(false);
                     }
                 }
