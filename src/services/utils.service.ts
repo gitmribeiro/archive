@@ -198,7 +198,9 @@ class Utils {
                     hash.update(data, 'utf8');
                 });
                 stream.on('end', function() {
-                    return resolve(hash.digest('hex'));
+                    setTimeout(() => {
+                        return resolve(hash.digest('hex'));
+                    }, 2000);
                 });
             } catch (err) {
                 return resolve(null);
