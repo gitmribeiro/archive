@@ -14,9 +14,6 @@ import { rejects } from 'assert';
  */
 class SnapshotService {
 
-    private lines = [];
-    private closed = false;
-
     constructor() { }
 
 
@@ -26,8 +23,6 @@ class SnapshotService {
      */
     public async execute(plan: any) {
         try {
-
-            // const snapshotService = this;
 
             logger.debug(`[OK] Iniciando snapshot para o plano: ${plan.id}`);
 
@@ -44,11 +39,10 @@ class SnapshotService {
 
                 if (fs.existsSync(path.dirname(sourcePath))) {
 
-                    // let lines = [];
-                    // let closed = false;
-
-                    // executa snapshot por comando do SO (windows inicialmente)
                     const snap = cp.spawn('dir', [`${sourcePath} /A-D /B /S 2>&1`], { shell: true });
+
+                    let lines = [];
+                    let status = 'active';
 
                     const rl = readline.createInterface({
                         input: snap.stdout,
@@ -64,9 +58,12 @@ class SnapshotService {
 
                         srcFile = path.normalize(srcFile);
 
-                        this.lines.push(srcFile);
+                        if (status == 'paused') {
+                            lines.push(srcFile);
+                        } else {
+                            readSnapshotCmd(srcFile);
+                        }
 
-                        this.readSnapshotCmd(srcFile);
 
                         // if (fs.existsSync(srcFile)) {
                         //     const statFile: any = fs.statSync(srcFile);
@@ -85,13 +82,42 @@ class SnapshotService {
                         // }
                     });
 
+                    rl.on('pause', async () => {
+                        status = 'paused';
+                    });
+                    
+                    rl.on('resume', async () => {
+                        status = 'active';
+                    });
+
                     rl.on('close', async () => {
                         // fs.renameSync(plan.snapshotfile, `${path.dirname(plan.snapshotfile)}/${plan.startdate}__${path.basename(plan.snapshotfile)}.snap`);
                         // logger.debug('[OK] O arquivo do snapshot foi gerado com sucesso, em instantes ele sera processado.');
                         // snapshotStream.end();
-                        console.log('Closed!');
-                        this.closed = true;
+                        status = 'closed';
                     });
+
+                    let readSnapshotCmd = (srcFile: string) => {
+                        
+                        rl.pause();
+                        
+                        if (status == 'active') {
+                            console.log(srcFile);
+                        } else {
+                            setTimeout(()=>{
+                                for (const [i, line] of lines) {
+                                    console.log(line);
+                                    lines.splice(i, 1);
+                                }
+                            }, 200);
+
+                            if (status == 'closed') {
+                            } else {
+                                console.log('>>>>>> aqui')
+                            }
+                        }
+
+                    }
 
                 } else {
                     throw Error('O source do plano nao foi localizado!');
@@ -110,21 +136,6 @@ class SnapshotService {
      * @param rl 
      */
     private async readSnapshotCmd(srcFile: string) {
-
-        // console.log('>>>>>>>>>>>>>>>', srcFile);
-
-        console.log(this.lines.length);
-        
-        this.lines.splice(0, 1);
-        
-        console.log(this.lines.length, this.closed);
-
-        if (this.closed && this.lines.length <= 0) {
-            console.log('>>>>>> renomear arquivo!');
-        }
-
-
-
         // return new Promise((resolve) => {
         //     try {
         //         // executa snapshot por comando do SO (windows inicialmente)
