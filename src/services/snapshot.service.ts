@@ -41,83 +41,41 @@ class SnapshotService {
 
                     const snap = cp.spawn('dir', [`${sourcePath} /A-D /B /S 2>&1`], { shell: true });
 
-                    let lines = [];
-                    let status = 'active';
-
                     const rl = readline.createInterface({
                         input: snap.stdout,
                         terminal: false,
                         historySize: 0
                     });
 
+                    rl.on('line', async (srcFile: any) => {
+                        if (fs.existsSync(srcFile)) {
+                            srcFile = path.normalize(srcFile);
+                            const statFile: any = fs.statSync(srcFile);
+                            
+                            let line = `${srcFile}|${statFile.dev + statFile.ino}|${statFile.atimeMs}|${statFile.mtimeMs}|${statFile.size}`;
+                            
+                            logger.debug(line);
+
+                            // fields: path | id | atime | mtime | size
+                            if (source.type.toLowerCase() === 'diff') {
+                                if (await this.changedFile(plan, line, source)) {
+                                    snapshotStream.write(`${line}\n`, 'utf8');
+                                }
+                            } else {
+                                snapshotStream.write(`${line}\n`, 'utf8');
+                            }
+                        }
+                    });
+
                     rl.on('error', (err) => {
                         logger.error('[X] Erro durante a leitura da linha no arquivo de snapshot! Message: ' + err.message);
                     });
 
-                    rl.on('line', async (srcFile: any) => {
-
-                        srcFile = path.normalize(srcFile);
-
-                        if (status == 'paused') {
-                            lines.push(srcFile);
-                        } else {
-                            readSnapshotCmd(srcFile);
-                        }
-
-
-                        // if (fs.existsSync(srcFile)) {
-                        //     const statFile: any = fs.statSync(srcFile);
-                        //     statFile.hash = await utils.checksumBigfile(srcFile);
-
-                        //     let line = `${srcFile}|${statFile.dev + statFile.ino}|${statFile.atimeMs}|${statFile.mtimeMs}|${statFile.size}|${statFile.hash}\n`;
-
-                        //     // fields: path | id | atime | mtime | size
-                        //     if (source.type.toLowerCase() === 'diff') {
-                        //         if (await snapshotService.changedFile(plan, line, source)) {
-                        //             snapshotStream.write(line, 'utf8');
-                        //         }
-                        //     } else {
-                        //         snapshotStream.write(line, 'utf8');
-                        //     }
-                        // }
-                    });
-
-                    rl.on('pause', async () => {
-                        status = 'paused';
-                    });
-                    
-                    rl.on('resume', async () => {
-                        status = 'active';
-                    });
-
                     rl.on('close', async () => {
-                        // fs.renameSync(plan.snapshotfile, `${path.dirname(plan.snapshotfile)}/${plan.startdate}__${path.basename(plan.snapshotfile)}.snap`);
-                        // logger.debug('[OK] O arquivo do snapshot foi gerado com sucesso, em instantes ele sera processado.');
                         // snapshotStream.end();
-                        status = 'closed';
+                        fs.renameSync(plan.snapshotfile, `${path.dirname(plan.snapshotfile)}/${plan.startdate}__${path.basename(plan.snapshotfile)}.snap`);
+                        logger.debug('[OK] O arquivo do snapshot foi gerado com sucesso, em instantes ele sera processado.');
                     });
-
-                    let readSnapshotCmd = (srcFile: string) => {
-                        
-                        rl.pause();
-                        
-                        if (status == 'active') {
-                            console.log(srcFile);
-                        } else {
-                            setTimeout(()=>{
-                                for (const [i, line] of lines) {
-                                    console.log(line);
-                                    lines.splice(i, 1);
-                                }
-                            }, 200);
-
-                            if (status == 'closed') {
-                            } else {
-                                console.log('>>>>>> aqui')
-                            }
-                        }
-
-                    }
 
                 } else {
                     throw Error('O source do plano nao foi localizado!');
@@ -126,46 +84,6 @@ class SnapshotService {
         } catch (err) {
             logger.error('[X] Ocorreu um erro ao executar o snapshot! Message: ' + err.message);
         }
-    }
-
-
-    /**
-     * 
-     * @param srcfile 
-     * @param source 
-     * @param rl 
-     */
-    private async readSnapshotCmd(srcFile: string) {
-        // return new Promise((resolve) => {
-        //     try {
-        //         // executa snapshot por comando do SO (windows inicialmente)
-        //         const snap = cp.spawn('dir', [`${sourcePath} /A-D /B /S 2>&1`], { shell: true });
-
-        //         const rl = readline.createInterface({
-        //             input: snap.stdout,
-        //             terminal: false,
-        //             historySize: 0
-        //         });
-
-        //         rl.on('error', (err) => {
-        //             logger.error('[X] Erro durante a leitura da linha no arquivo de snapshot! Message: ' + err.message);
-        //         });
-
-        //         rl.on('line', async (srcFile: any) => {
-        //             lines.push(srcFile);
-        //         });
-
-        //         rl.on('close', async () => {
-        //             // fs.renameSync(plan.snapshotfile, `${path.dirname(plan.snapshotfile)}/${plan.startdate}__${path.basename(plan.snapshotfile)}.snap`);
-        //             // logger.debug('[OK] O arquivo do snapshot foi gerado com sucesso, em instantes ele sera processado.');
-        //             // snapshotStream.end();
-                    
-        //             return resolve(lines);
-        //         });
-        //     } catch (err) {
-        //         return rejects(err);
-        //     }
-        // });
     }
 
 
@@ -179,7 +97,7 @@ class SnapshotService {
         return new Promise((resolve) => {
             try {
 
-                let lineParts = line.substr(0, line.indexOf('\n')).split('|');
+                let lineParts = line.split('|');
 
                 const snapshotData = {
                     id: lineParts[1],
@@ -195,7 +113,7 @@ class SnapshotService {
                 if (fs.existsSync(metadataPath)) {
                     const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
 
-                    if (snapshotData.size == metadata.size && snapshotData.modified == metadata.modified && snapshotData.hash == metadata.hash) {
+                    if (snapshotData.size == metadata.size && snapshotData.modified == metadata.modified) {
                         return resolve(false);
                     }
                 }
