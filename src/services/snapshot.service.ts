@@ -2,11 +2,12 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as cp from 'child_process';
 import * as readline from 'readline';
-import moment = require('moment');
+import * as moment from 'moment';
+import * as readdir from 'readdir-enhanced';
+import * as lineByLineReader from 'line-by-line';
 
 import logger from '../services/logger.service';
 import utils from '../services/utils.service';
-import { rejects } from 'assert';
 
 
 /**
@@ -33,6 +34,9 @@ class SnapshotService {
 
             const snapshotStream = fs.createWriteStream(plan.snapshotfile, { encoding: "utf8" });
 
+            // salva o plano no header do snapshot
+            snapshotStream.write(`${JSON.stringify(plan)}\n`, 'utf8');
+
             for (let source of plan.sources) {
 
                 let sourcePath = path.normalize(source.path + '/' + source.search);
@@ -51,9 +55,9 @@ class SnapshotService {
                         if (fs.existsSync(srcFile)) {
                             srcFile = path.normalize(srcFile);
                             const statFile: any = fs.statSync(srcFile);
-                            
+
                             let line = `${srcFile}|${statFile.dev + statFile.ino}|${statFile.atimeMs}|${statFile.mtimeMs}|${statFile.size}`;
-                            
+
                             logger.debug(line);
 
                             // fields: path | id | atime | mtime | size
@@ -74,7 +78,7 @@ class SnapshotService {
                     rl.on('close', async () => {
                         // snapshotStream.end();
                         fs.renameSync(plan.snapshotfile, `${path.dirname(plan.snapshotfile)}/${plan.startdate}__${path.basename(plan.snapshotfile)}.snap`);
-                        logger.debug('[OK] O arquivo do snapshot foi gerado com sucesso, em instantes ele sera processado.');
+                        logger.debug('[OK] O arquivo do snapshot foi gerado com sucesso e em instantes ele sera processado.');
                     });
 
                 } else {
@@ -121,6 +125,62 @@ class SnapshotService {
                 return resolve(true);
             } catch (err) {
                 logger.error('Ocorreu um erro na verificação de alteração do arquivo! Message: ' + err);
+                return resolve(true);
+            }
+        });
+    }
+
+
+    /**
+     * Processa o snapshot do plano informado
+     * @param plan objeto representando o planejamento do backup
+     */
+    public async process(plan: any) {
+        return new Promise(async (resolve) => {
+            try {
+
+                let snapshotfile = path.normalize(`${utils.getDataPath()}/plans/${plan.id}/snapshots`);
+
+                if (fs.existsSync(snapshotfile)) {
+                    
+                    let files = readdir.sync(snapshotfile, { deep: false, sep: '/', filter: '**/*.snap' });
+    
+                    if (files.length > 0) {
+                        let file = path.normalize(`${snapshotfile}/${files[0]}`);
+    
+                        const rl = new lineByLineReader(file);
+                        let i = 1;
+    
+                        rl.on('error', (err) => {
+                            logger.error(err);
+                        });
+    
+                        rl.on('line', async(line) => {
+                            rl.pause();
+                            
+                            // logger.info(line);
+                            fs.writeFileSync(`${snapshotfile}/teste/${i}.txt`, line, 'utf8');
+
+                            i++;
+                            rl.resume();
+                        });
+    
+                        rl.on('end', async () => {
+                            logger.debug('[OK] O arquivo do snapshot foi processado com sucesso.');
+                            if (fs.existsSync(file)) {
+                                fs.unlinkSync(file);
+                            }
+                            return resolve(true);
+                        });
+                    } else {
+                        return resolve(true);
+                    }
+                } else {
+                    logger.warn('O caminho do snapshot não foi localizado: ' + snapshotfile);
+                    return resolve(true);
+                }
+            } catch (err) {
+                logger.error(err);
                 return resolve(true);
             }
         });

@@ -5,6 +5,8 @@ import * as readline from 'readline';
 
 import logger from '../../services/logger.service';
 import utils from '../../services/utils.service';
+import planService from '../../services/plan.service';
+import snapshotService from '../../services/snapshot.service';
 
 
 /**
@@ -12,7 +14,10 @@ import utils from '../../services/utils.service';
  */
 class Snapshot {
 
+    private progress: boolean;
+
     constructor() {
+        this.progress = false;
         this.schedule();
     }
 
@@ -21,8 +26,8 @@ class Snapshot {
      * Agenda leitura dos arquivos em snapshots
      */
     public schedule() {
-        cron.schedule('* * * * * *', async () => {
-            this.execute()
+        cron.schedule('* * * * * *', () => {
+            this.execute();
         });
     }
 
@@ -31,7 +36,18 @@ class Snapshot {
      * Busca os snapshots e processa gerando os metadados para cada arquivo presente
      */
     private async execute() {
-        logger.info('Processando snapshot!');
+        if (this.progress == false) {
+
+            const plans = await planService.getAll();
+    
+            for (let plan of plans) {
+                this.progress = true;
+                
+                await snapshotService.process(plan);
+            }
+            
+            this.progress = false;
+        }
     }
 
 }

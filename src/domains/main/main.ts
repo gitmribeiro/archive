@@ -35,7 +35,7 @@ class Main {
      */
     private createChildProcess() {
         // this.driveProcess = cp.fork(path.normalize(`${__dirname}/../tasks/drive.task`));
-        // this.snapshotProcess = cp.fork(path.normalize(`${__dirname}/../tasks/snapshot.task`));
+        this.snapshotProcess = cp.fork(path.normalize(`${__dirname}/../tasks/snapshot.task`));
         this.planProcess = cp.fork(path.normalize(`${__dirname}/../tasks/plan.task`));
 
         this.eventChildProcess();
@@ -47,7 +47,7 @@ class Main {
      */
     private eventChildProcess() {
         // this.driveProcess.on('message', (msg: string) => { logger.info(msg) });
-        // this.snapshotProcess.on('message', (msg: string) => { logger.info(msg) });
+        this.snapshotProcess.on('message', (msg: string) => { logger.info(msg) });
         this.planProcess.on('message', (msg: string) => { logger.info(msg); });
     }
 

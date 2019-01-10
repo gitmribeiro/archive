@@ -20,8 +20,10 @@
     "test": "tsc && mocha build/**/*.spec.js"
   },
   "dependencies": {
+    "@types/line-by-line": "^0.1.2",
     "aws-sdk": "^2.382.0",
     "eslint-plugin-typescript": "^0.14.0",
+    "line-by-line": "^0.1.6",
     "moment": "^2.23.0",
     "morgan": "^1.9.1",
     "node-cron": "^2.0.3",
