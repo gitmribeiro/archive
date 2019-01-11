@@ -1,8 +1,9 @@
 import * as fs from 'fs';
 import * as path from 'path';
 
-import utils from './utils.service';
 import logger from './logger.service';
+import utils from './utils.service';
+
 
 /**
  * Responsável por configurar todo o ambiente de execução do serviço

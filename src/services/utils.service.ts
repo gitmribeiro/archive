@@ -5,6 +5,7 @@ import * as cp from 'child_process';
 import * as readline from 'readline';
 
 import logger from './logger.service';
+import config from './config.service';
 
 
 /**
@@ -176,7 +177,7 @@ class Utils {
         });
 
         rl.on('close', async function () {
-            // TODO
+            logger.info('closed!');
         });
     }
 

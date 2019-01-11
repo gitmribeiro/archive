@@ -28,13 +28,13 @@ class SnapshotService {
             logger.debug(`[OK] Iniciando snapshot para o plano: ${plan.id}`);
 
             plan.startdate = moment().format('YYYYMMDDHHmmss');
+            
             plan.snapshotfile = path.normalize(`${utils.getDataPath()}/plans/${plan.id}/snapshots/${plan.id}`);
 
             await utils.mkdirRecursiveSync(path.dirname(plan.snapshotfile));
 
             const snapshotStream = fs.createWriteStream(plan.snapshotfile, { encoding: "utf8" });
 
-            // salva o plano no header do snapshot
             snapshotStream.write(`${JSON.stringify(plan)}\n`, 'utf8');
 
             for (let source of plan.sources) {
@@ -56,11 +56,10 @@ class SnapshotService {
                             srcFile = path.normalize(srcFile);
                             const statFile: any = fs.statSync(srcFile);
 
+                            // path | id | atime | mtime | size
                             let line = `${srcFile}|${statFile.dev + statFile.ino}|${statFile.atimeMs}|${statFile.mtimeMs}|${statFile.size}`;
+                            // logger.debug(line);
 
-                            logger.debug(line);
-
-                            // fields: path | id | atime | mtime | size
                             if (source.type.toLowerCase() === 'diff') {
                                 if (await this.changedFile(plan, line, source)) {
                                     snapshotStream.write(`${line}\n`, 'utf8');
@@ -76,7 +75,6 @@ class SnapshotService {
                     });
 
                     rl.on('close', async () => {
-                        // snapshotStream.end();
                         fs.renameSync(plan.snapshotfile, `${path.dirname(plan.snapshotfile)}/${plan.startdate}__${path.basename(plan.snapshotfile)}.snap`);
                         logger.debug('[OK] O arquivo do snapshot foi gerado com sucesso e em instantes ele sera processado.');
                     });
@@ -141,6 +139,8 @@ class SnapshotService {
 
                 let snapshotfile = path.normalize(`${utils.getDataPath()}/plans/${plan.id}/snapshots`);
 
+                await utils.mkdirRecursiveSync(snapshotfile);
+
                 if (fs.existsSync(snapshotfile)) {
                     
                     let files = readdir.sync(snapshotfile, { deep: false, sep: '/', filter: '**/*.snap' });
@@ -159,13 +159,14 @@ class SnapshotService {
                             rl.pause();
                             
                             // logger.info(line);
-                            fs.writeFileSync(`${snapshotfile}/teste/${i}.txt`, line, 'utf8');
+                            // fs.writeFileSync(`${snapshotfile}/teste/${i}.txt`, line, 'utf8');
 
                             i++;
                             rl.resume();
                         });
     
                         rl.on('end', async () => {
+                            console.log(utils.CFG());
                             logger.debug('[OK] O arquivo do snapshot foi processado com sucesso.');
                             if (fs.existsSync(file)) {
                                 fs.unlinkSync(file);

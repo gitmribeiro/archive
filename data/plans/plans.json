@@ -1,23 +1,23 @@
 [
-	{
-		"id" : "89c24f87-2ebb-4932-b4c6-abc9bf251f27",
-		"name" : "Backup Diário",
-		"enable" : true,
-		"schedule" : {
-			"frequency" : "daily",
-			"hour" : "22:51"
-		},
-		"sources" : [
-			{
-				"path" : "C:/Users/marcelo.ribeiro/Desktop/1.2.392.200036.9116.2.6.1.37.2423319922.1523857820.50111/TESTE",
-				"search" : "*.*",
-				"storagepath": "dicom",
-				"type" : "diff",
-				"compression" : {
-					"dicom" : "lossless",
-					"quality" : 90
-				}
-			}
-		]
-	}
+    {
+        "id": "89c24f87-2ebb-4932-b4c6-abc9bf251f27",
+        "name": "Backup Diário",
+        "enable": true,
+        "schedule": {
+            "frequency": "daily",
+            "hour": "23:00"
+        },
+        "sources": [
+            {
+                "path": "C:/Users/admin/Desktop/DICOM/CT",
+                "search": "*.*",
+                "storagepath": "dicom",
+                "type": "diff",
+                "compression": {
+                    "dicom": "lossless",
+                    "quality": 90
+                }
+            }
+        ]
+    }
 ]
