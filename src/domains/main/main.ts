@@ -3,7 +3,6 @@ import * as cp from 'child_process';
 
 import logger from '../../services/logger.service';
 import config from '../../services/config.service';
-import utils from '../../services/utils.service';
 
 
 /**
@@ -30,7 +29,7 @@ class Main {
      * para o servidor express (APIs)
      */
     private createChildProcess() {
-        // cp.fork(path.normalize(`${__dirname}/../tasks/drive.task`));
+        cp.fork(path.normalize(`${__dirname}/../tasks/drive.task`));
         cp.fork(path.normalize(`${__dirname}/../tasks/snapshot.task`));
         cp.fork(path.normalize(`${__dirname}/../tasks/plan.task`));
     }

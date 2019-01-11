@@ -26,10 +26,8 @@ class ConfigService {
             if (fs.existsSync(this.configFile)) {
                 this.CFG = JSON.parse(fs.readFileSync(this.configFile, 'utf8'));
             } else {
-                await this.create();
+                this.CFG = await this.create();
             }
-    
-            utils.CFG(this.CFG);
 
             return this.CFG;
         } catch (err) {

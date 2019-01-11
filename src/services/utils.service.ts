@@ -5,7 +5,6 @@ import * as cp from 'child_process';
 import * as readline from 'readline';
 
 import logger from './logger.service';
-import config from './config.service';
 
 
 /**
@@ -13,9 +12,6 @@ import config from './config.service';
  */
 class Utils {
 
-    private _CFG: any;
-    private idle = true;
-    
     constructor() {}
 
 
@@ -33,20 +29,14 @@ class Utils {
         return path.normalize(`${__dirname}/../../data/resources`);
     }
 
-    
-    public CFG(cfg?: any) {
-        if (cfg) {
-            this._CFG = cfg;
-        }
-        return this._CFG;
+
+    public getDrivePath() {
+        return this.CFG().drive.path || `${this.getRootPath()}/drive`;
     }
 
 
-    public isIdle(idle: boolean) {
-        if (idle) {
-            this.idle = idle;
-        }
-        return this.idle;
+    public CFG() {
+        return JSON.parse(fs.readFileSync(`${this.getRootPath()}/data/config.json`, 'utf8'));
     }
 
     

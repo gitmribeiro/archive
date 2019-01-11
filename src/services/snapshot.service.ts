@@ -6,8 +6,9 @@ import * as moment from 'moment';
 import * as readdir from 'readdir-enhanced';
 import * as lineByLineReader from 'line-by-line';
 
-import logger from '../services/logger.service';
-import utils from '../services/utils.service';
+import logger from './logger.service';
+import utils from './utils.service';
+import dicomService from './dicom.service';
 
 
 /**
@@ -16,6 +17,24 @@ import utils from '../services/utils.service';
 class SnapshotService {
 
     constructor() { }
+
+
+    /**
+     * Obtém metadado da linha processada
+     * @param line representa metadado
+     */
+    public getSnapshotData(line: string) {
+        let lineParts = line.split('|');
+
+        return {
+            id: lineParts[1],
+            path: lineParts[0],
+            creation: lineParts[2],
+            modified: lineParts[3],
+            size: lineParts[4],
+            sourceidx: lineParts[5]
+        };
+    }
 
 
     /**
@@ -28,14 +47,14 @@ class SnapshotService {
             logger.debug(`[OK] Iniciando snapshot para o plano: ${plan.id}`);
 
             plan.startdate = moment().format('YYYYMMDDHHmmss');
-            
+
             plan.snapshotfile = path.normalize(`${utils.getDataPath()}/plans/${plan.id}/snapshots/${plan.id}`);
 
             await utils.mkdirRecursiveSync(path.dirname(plan.snapshotfile));
 
             const snapshotStream = fs.createWriteStream(plan.snapshotfile, { encoding: "utf8" });
 
-            snapshotStream.write(`${JSON.stringify(plan)}\n`, 'utf8');
+            let sourceIdx = 0;
 
             for (let source of plan.sources) {
 
@@ -56,9 +75,8 @@ class SnapshotService {
                             srcFile = path.normalize(srcFile);
                             const statFile: any = fs.statSync(srcFile);
 
-                            // path | id | atime | mtime | size
-                            let line = `${srcFile}|${statFile.dev + statFile.ino}|${statFile.atimeMs}|${statFile.mtimeMs}|${statFile.size}`;
-                            // logger.debug(line);
+                            // path | id | atime | mtime | size | sourceIdx
+                            let line = `${srcFile}|${statFile.dev + statFile.ino}|${statFile.atimeMs}|${statFile.mtimeMs}|${statFile.size}|${sourceIdx}`;
 
                             if (source.type.toLowerCase() === 'diff') {
                                 if (await this.changedFile(plan, line, source)) {
@@ -76,12 +94,14 @@ class SnapshotService {
 
                     rl.on('close', async () => {
                         fs.renameSync(plan.snapshotfile, `${path.dirname(plan.snapshotfile)}/${plan.startdate}__${path.basename(plan.snapshotfile)}.snap`);
-                        logger.debug('[OK] O arquivo do snapshot foi gerado com sucesso e em instantes ele sera processado.');
+                        logger.debug('[OK] O snapshot foi gerado com sucesso e em instantes ele sera processado.');
                     });
 
                 } else {
                     throw Error('O source do plano nao foi localizado!');
                 }
+
+                // sourceIdx++;
             }
         } catch (err) {
             logger.error('[X] Ocorreu um erro ao executar o snapshot! Message: ' + err.message);
@@ -99,16 +119,7 @@ class SnapshotService {
         return new Promise((resolve) => {
             try {
 
-                let lineParts = line.split('|');
-
-                const snapshotData = {
-                    id: lineParts[1],
-                    path: lineParts[0],
-                    creation: lineParts[2],
-                    modified: lineParts[3],
-                    size: lineParts[4],
-                    hash: lineParts[5]
-                }
+                const snapshotData = this.getSnapshotData(line);
 
                 const metadataPath = path.normalize(`${utils.getDataPath()}/plans/${plan.id}/stats/${moment(parseInt(snapshotData.creation.toString())).format('YYYYMMDD')}/${snapshotData.id}`);
 
@@ -142,34 +153,40 @@ class SnapshotService {
                 await utils.mkdirRecursiveSync(snapshotfile);
 
                 if (fs.existsSync(snapshotfile)) {
-                    
+
                     let files = readdir.sync(snapshotfile, { deep: false, sep: '/', filter: '**/*.snap' });
-    
+
                     if (files.length > 0) {
+
                         let file = path.normalize(`${snapshotfile}/${files[0]}`);
-    
-                        const rl = new lineByLineReader(file);
-                        let i = 1;
-    
+
+                        let completedPath = path.normalize(`${path.dirname(snapshotfile)}/completed`);
+
+                        await utils.mkdirRecursiveSync(completedPath);
+
+                        const wl = fs.createWriteStream(`${completedPath}/${files[0]}`, { encoding: "utf8" });
+
+                        const rl = new lineByLineReader(file, { start: 0 });
+
                         rl.on('error', (err) => {
                             logger.error(err);
                         });
-    
-                        rl.on('line', async(line) => {
-                            rl.pause();
-                            
-                            // logger.info(line);
-                            // fs.writeFileSync(`${snapshotfile}/teste/${i}.txt`, line, 'utf8');
 
-                            i++;
+                        rl.on('line', async (line) => {
+                            rl.pause();
+
+                            line = await this.readAndProcess(plan, line);
+
+                            wl.write(`${line}\n`, 'utf8');
+
                             rl.resume();
                         });
-    
+
                         rl.on('end', async () => {
-                            console.log(utils.CFG());
-                            logger.debug('[OK] O arquivo do snapshot foi processado com sucesso.');
+                            logger.debug('[OK] O snapshot foi processado com sucesso.');
                             if (fs.existsSync(file)) {
                                 fs.unlinkSync(file);
+                                wl.end();
                             }
                             return resolve(true);
                         });
@@ -185,6 +202,98 @@ class SnapshotService {
                 return resolve(true);
             }
         });
+    }
+
+
+    /**
+     * Lê e processa cada arquivo
+     * @param plan objeto representando o planejamento do backup
+     * @param line string representando o path do arquivo
+     */
+    public async readAndProcess(plan: any, line: string) {
+        return new Promise(async (resolve) => {
+            try {
+
+                const snapshotData = this.getSnapshotData(line);
+                let statsPath = path.normalize(`${utils.getDataPath()}/plans/${plan.id}/stats/${moment(parseInt(snapshotData.creation.toString())).format('YYYYMMDD')}`);
+                await utils.mkdirRecursiveSync(statsPath);
+
+                // aplicar compressao e copiar arquivo da origem para o drive
+                const detail: any = await this.sendToDrive(plan, snapshotData, line);
+
+                // path | id | atime | mtime | size | sourceIdx | endTime | outSize
+                line = `${line}|SUCCESS|${detail.endTime}|${detail.outSize}`;
+
+                let metadataFile = path.normalize(`${statsPath}/${snapshotData.id}`);
+                fs.writeFileSync(metadataFile, JSON.stringify(snapshotData, null, 4), 'utf8');
+                return resolve(line);
+            } catch (err) {
+                line = `${line}|${err.message.toString()}`;
+                return resolve(line);
+            }
+        });
+    }
+
+
+    private async sendToDrive(plan: any, metadata: any, line: string) {
+        return new Promise(async (resolve, reject) => {
+            try {
+                
+                // TODO: verifica espaço disponivel aqui
+
+                // obtem source do plano pelo metadado
+                const sourcePlan = plan.sources[metadata.sourceidx];
+
+                // constroi path do arquivo no drive (conforme storagepath do plano)
+                let drivePath = path.normalize(metadata.path.replace(/[\\"]/g, '/').replace(`${sourcePlan.path}`, `${utils.getDrivePath()}/${sourcePlan.storagepath}/`));
+
+                await utils.mkdirRecursiveSync(path.dirname(drivePath));
+
+                let fileDetail: any;
+
+                // aplica compressao se exigido (se arquivo dicom)
+                if (sourcePlan.compression.dicom.toUpperCase() === 'LOSSLESS' || sourcePlan.compression.dicom.toUpperCase() === 'LOSSY') {
+                    if (dicomService.isDicomFile(metadata.path)) {
+                        fileDetail = await dicomService.compressFile(metadata.path, drivePath, sourcePlan.compression.dicom, sourcePlan.compression.quality);
+                    } else {
+                        fileDetail = await this.copyFileSync(metadata.path, drivePath);
+                    }
+                } else {
+                    fileDetail = await this.copyFileSync(metadata.path, drivePath);
+                }
+
+                return resolve(fileDetail);
+            } catch (err) {
+                logger.error(err);
+                return reject(err);
+            }
+        });
+    }
+
+    private async copyFileSync(src: string, dst: string) {
+        try {
+            let fileDetail: any = {
+                success: false,
+                startTime: moment().valueOf(),
+                endTime: moment().valueOf(),
+                srcFile: src,
+                tempFile: dst,
+                outSize: 0
+            };
+
+            fs.copyFileSync(src, dst);
+
+            const stats = fs.statSync(dst);
+            fileDetail.srcDev = stats.dev;
+            fileDetail.srcOid = stats.ino;
+            fileDetail.outSize = stats.size;
+            fileDetail.endTime = new Date().getTime();
+            fileDetail.success = true;
+
+            return fileDetail;
+        } catch (err) {
+            logger.error(err);
+        }
     }
 
 }

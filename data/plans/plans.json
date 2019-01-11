@@ -9,12 +9,12 @@
         },
         "sources": [
             {
-                "path": "C:/Users/admin/Desktop/DICOM/CT",
+                "path": "C:/Users/marcelo.ribeiro/Desktop/1.2.392.200036.9116.2.6.1.37.2423319922.1523857820.50111/TESTE1/dicom",
                 "search": "*.*",
                 "storagepath": "dicom",
                 "type": "diff",
                 "compression": {
-                    "dicom": "lossless",
+                    "dicom": "lossy",
                     "quality": 90
                 }
             }

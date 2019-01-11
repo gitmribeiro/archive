@@ -1,6 +1,6 @@
 import * as cron from 'node-cron';
 
-import logger from '../../services/logger.service';
+import driveService from '../../services/drive.service';
 
 
 /**
@@ -18,7 +18,7 @@ class DriveTask {
      */
     public schedule() {
         cron.schedule('* * * * * *', async () => {
-            logger.info('Drive!');
+            driveService.scan();
         });
     }
 }
