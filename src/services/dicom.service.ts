@@ -71,7 +71,7 @@ class DicomService {
                 let jsonTempFile: any = path.normalize(`${utils.getDataPath()}/resources/tags/${moment().valueOf()}.json`);
 
                 // executa dcmdump para obter as tags
-                let output = await this.execute(`dcm2json +m -fc ${filename} ${jsonTempFile}`);
+                let output = await this.execute(`dcm2json +m -fc "${filename}" "${jsonTempFile}"`);
 
                 if (output) throw output;
 
@@ -139,7 +139,6 @@ class DicomService {
                     throw Error('Atencao: O nome do arquivo de destino deve ser diferente do nome do arquivo de origem!');
                 }
 
-
                 srcFile = path.normalize(srcFile);
 
                 // obtem dados do arquivo de origem
@@ -165,10 +164,8 @@ class DicomService {
                 // obtem tags dicom
                 const dataSet: any = await this.getTagsFromFile(srcFile);
 
-                // registra saida do console
-                let output: any;
-
                 if (fileDetail.compression.dicom === 'LOSSLESS' || fileDetail.compression.dicom === 'LOSSY') {
+                    let output: any;
 
                     if (fileDetail.compression.dicom === 'LOSSLESS') {
                         fileDetail.compression.compressed = true;
@@ -177,8 +174,7 @@ class DicomService {
                         if((dataSet.string('x00082111') && dataSet.string('x00082111')) && !dataSet.string('x00082111').toLowerCase().startsWith('lossless') && !dataSet.string('x00082111').toLowerCase().startsWith('lossy')) {
                             
                             // dcmtk - compressao lossless
-                            console.log(`dcmcjpeg -v ${srcFile} ${fileDetail.tempFile}`);
-                            output = await this.execute(`dcmcjpeg -v ${srcFile} ${fileDetail.tempFile}`);
+                            output = await this.execute(`dcmcjpeg -v "${srcFile}" "${fileDetail.tempFile}"`);
                         } else {
                             
                             // sendo lossless apenas obtem os detalhes do arquivo e copia (srcFile)
@@ -191,8 +187,8 @@ class DicomService {
                         fileDetail.compression.compressed = true;
 
                         // obtem tag de bits alocados
-                        let bitsAllocatedElement = dataSet.elements.x00280100;
-                        
+                        let bitsAllocatedElement = dataSet.elements.x00280100 || { dataOffset: 8, length: 0 };
+
                         // extrai bits alocados do arquivo dicom
                         let bitsAllocated: any = new Uint8Array(dataSet.byteArray.buffer, bitsAllocatedElement.dataOffset, bitsAllocatedElement.length) || [8, 0];
                         if (bitsAllocated.length > 0) {
@@ -203,14 +199,14 @@ class DicomService {
                         if (bitsAllocated > 8) {
                             
                             // dcmtk - compressao lossy
-                            output = await this.execute(`dcmcjpeg -v +ee +q ${fileDetail.compression.quality} ${srcFile} ${fileDetail.tempFile}`);
+                            output = await this.execute(`dcmcjpeg -v +ee +q ${fileDetail.compression.quality} "${srcFile}" "${fileDetail.tempFile}"`);
                         } else {
-        
+                            
                             // dcmtk - compressao lossy
-                            output = await this.execute(`dcmcjpeg -v +eb +q ${fileDetail.compression.quality} ${srcFile} ${fileDetail.tempFile}`);
+                            output = await this.execute(`dcmcjpeg -v +eb +q ${fileDetail.compression.quality} "${srcFile}" "${fileDetail.tempFile}"`);
                         }
                     }
-
+                    
                     // converte saida do console em array para validar o sucesso da operacao
                     if (output) {
                         output = output.toString().split(/(?:\r\n|\r|\n)/g);
@@ -224,13 +220,14 @@ class DicomService {
                         fileDetail.outSize = stats.size;
                         fileDetail.endTime = new Date().getTime();
                         fileDetail.success = true;
-
+                        
                         return resolve(fileDetail);
                     }
                 }
 
                 throw Error('Command or options not supported!');
             } catch (err) {
+                logger.error(err);
                 return reject(err);
             }
         });

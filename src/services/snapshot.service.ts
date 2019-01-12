@@ -5,6 +5,7 @@ import * as readline from 'readline';
 import * as moment from 'moment';
 import * as readdir from 'readdir-enhanced';
 import * as lineByLineReader from 'line-by-line';
+import * as disk from 'diskusage';
 
 import logger from './logger.service';
 import utils from './utils.service';
@@ -15,6 +16,8 @@ import dicomService from './dicom.service';
  * Classe responsável por regras de negócio do snapshot
  */
 class SnapshotService {
+
+    private CFG: any;
 
     constructor() { }
 
@@ -158,6 +161,8 @@ class SnapshotService {
 
                     if (files.length > 0) {
 
+                        this.CFG = utils.CFG();
+
                         let file = path.normalize(`${snapshotfile}/${files[0]}`);
 
                         let completedPath = path.normalize(`${path.dirname(snapshotfile)}/completed`);
@@ -175,8 +180,8 @@ class SnapshotService {
                         rl.on('line', async (line) => {
                             rl.pause();
 
+                            logger.info(`Processando: ${line}`);
                             line = await this.readAndProcess(plan, line);
-
                             wl.write(`${line}\n`, 'utf8');
 
                             rl.resume();
@@ -218,11 +223,16 @@ class SnapshotService {
                 let statsPath = path.normalize(`${utils.getDataPath()}/plans/${plan.id}/stats/${moment(parseInt(snapshotData.creation.toString())).format('YYYYMMDD')}`);
                 await utils.mkdirRecursiveSync(statsPath);
 
-                // aplicar compressao e copiar arquivo da origem para o drive
-                const detail: any = await this.sendToDrive(plan, snapshotData, line);
+                let detail: any;
+
+                try {
+                    detail = await this.sendToDrive(plan, snapshotData);
+                } catch (e) {
+                    detail = { error: e.message, endTime: moment().valueOf(), outSize: 0 };
+                }
 
                 // path | id | atime | mtime | size | sourceIdx | endTime | outSize
-                line = `${line}|SUCCESS|${detail.endTime}|${detail.outSize}`;
+                line = `${line}|${detail.error || 'SUCCESS'}|${detail.endTime}|${detail.outSize}`;
 
                 let metadataFile = path.normalize(`${statsPath}/${snapshotData.id}`);
                 fs.writeFileSync(metadataFile, JSON.stringify(snapshotData, null, 4), 'utf8');
@@ -235,41 +245,57 @@ class SnapshotService {
     }
 
 
-    private async sendToDrive(plan: any, metadata: any, line: string) {
+    /**
+     * Envia arquivo para o drive responsável por enviar ao provedor
+     * @param plan 
+     * @param metadata 
+     */
+    private async sendToDrive(plan: any, metadata: any) {
         return new Promise(async (resolve, reject) => {
             try {
-                
-                // TODO: verifica espaço disponivel aqui
 
-                // obtem source do plano pelo metadado
-                const sourcePlan = plan.sources[metadata.sourceidx];
-
-                // constroi path do arquivo no drive (conforme storagepath do plano)
-                let drivePath = path.normalize(metadata.path.replace(/[\\"]/g, '/').replace(`${sourcePlan.path}`, `${utils.getDrivePath()}/${sourcePlan.storagepath}/`));
-
-                await utils.mkdirRecursiveSync(path.dirname(drivePath));
-
-                let fileDetail: any;
-
-                // aplica compressao se exigido (se arquivo dicom)
-                if (sourcePlan.compression.dicom.toUpperCase() === 'LOSSLESS' || sourcePlan.compression.dicom.toUpperCase() === 'LOSSY') {
-                    if (dicomService.isDicomFile(metadata.path)) {
-                        fileDetail = await dicomService.compressFile(metadata.path, drivePath, sourcePlan.compression.dicom, sourcePlan.compression.quality);
+                // se não existe espaço livre interrompe o processo até a liberação do drive
+                if (await this.hasFreeSpace()) {
+                    
+                    // obtem source do plano pelo metadado
+                    const sourcePlan = plan.sources[metadata.sourceidx];
+    
+                    // constroi path do arquivo no drive (conforme storagepath do plano)
+                    let drivePath = path.normalize(metadata.path.replace(/[\\"]/g, '/').replace(`${sourcePlan.path}`, `${utils.getDrivePath()}/${sourcePlan.storagepath}/`));
+    
+                    await utils.mkdirRecursiveSync(path.dirname(drivePath));
+    
+                    let fileDetail: any;
+    
+                    // aplica compressao se exigido (se arquivo dicom)
+                    if (sourcePlan.compression.dicom.toUpperCase() === 'LOSSLESS' || sourcePlan.compression.dicom.toUpperCase() === 'LOSSY') {
+                        if (dicomService.isDicomFile(metadata.path)) {
+                            try {
+                                fileDetail = await dicomService.compressFile(metadata.path, drivePath, sourcePlan.compression.dicom, sourcePlan.compression.quality);
+                            } catch (e) {
+                                fileDetail.error = e.message;
+                            }
+                        } else {
+                            fileDetail = await this.copyFileSync(metadata.path, drivePath);
+                        }
                     } else {
                         fileDetail = await this.copyFileSync(metadata.path, drivePath);
                     }
-                } else {
-                    fileDetail = await this.copyFileSync(metadata.path, drivePath);
+    
+                    return resolve(fileDetail);
                 }
-
-                return resolve(fileDetail);
             } catch (err) {
-                logger.error(err);
                 return reject(err);
             }
         });
     }
 
+
+    /**
+     * Copia simples do arquivo para o destino
+     * @param src 
+     * @param dst 
+     */
     private async copyFileSync(src: string, dst: string) {
         try {
             let fileDetail: any = {
@@ -294,6 +320,22 @@ class SnapshotService {
         } catch (err) {
             logger.error(err);
         }
+    }
+
+
+    /**
+     * Retorna o espaço disponível no path planejado
+     * info.available, info.free, info.total
+     */
+    private hasFreeSpace() {
+        return new Promise((resolve) => {
+            disk.check(utils.getDrivePath(), (err, info) => {
+                if (err) {
+                    return resolve(0);
+                }
+                return resolve(Math.round((info.free * this.CFG.drive.maxFreeSpace || 50)/100) > 0);
+            });
+        });
     }
 
 }
