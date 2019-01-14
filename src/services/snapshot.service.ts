@@ -331,9 +331,21 @@ class SnapshotService {
         return new Promise((resolve) => {
             disk.check(utils.getDrivePath(), (err, info) => {
                 if (err) {
-                    return resolve(0);
+                    logger.error('[X] Erro ao calcular espaço no drive - Message: ' + err.message);
+                    return resolve(false);
                 }
-                return resolve(Math.round((info.free * this.CFG.drive.maxFreeSpace || 50)/100) > 0);
+                
+                let isFreeSpace = Math.round((info.free * this.CFG.drive.maxFreeSpace)/100) > 0;
+                
+                if (isFreeSpace) {
+                    return resolve(isFreeSpace);
+                }
+                
+                const checkFreeSpace = setTimeout(async() => {
+                    logger.debug('[X] Processo interrompido! Aguardando liberação de espaço no drive.');
+                    await this.hasFreeSpace();
+                    clearTimeout(checkFreeSpace);
+                }, 5000);
             });
         });
     }
