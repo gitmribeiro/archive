@@ -9,9 +9,9 @@
         },
         "sources": [
             {
-                "path": "C:/Users/marcelo.ribeiro/Desktop/1.2.392.200036.9116.2.6.1.37.2423319922.1523857820.50111/TESTE/dicom",
+                "path": "C:/Users/marcelo.ribeiro/Desktop/1.2.392.200036.9116.2.6.1.37.2423319922.1523857820.50111/TESTE/attachs",
                 "search": "*.*",
-                "storagepath": "dicom",
+                "storagepath": "attachs",
                 "type": "diff",
                 "compression": {
                     "dicom": "lossy",

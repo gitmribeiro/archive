@@ -265,15 +265,15 @@ class Utils {
 
         if (String(os.type) === "Windows_NT") {
             
-            cp.exec(`"${path.normalize(this.getResourcePath())}/vendors/drivespace/drivespace.exe" drive-${drive.charAt(0)}`, (error: Error, stdout: any, stderr: any) => {
+            cp.exec(`fsutil volume diskfree ${drive}`, (error: Error, stdout: any, stderr: any) => {
                 if (error) {
                     result.status = 'STDERR';
                 } else {
-                    let disk_info = stdout.trim().split(',');
-                    result.total = disk_info[0];
-                    result.free = disk_info[1];
+                    const parts = stdout.split(`\r\n`);
+
+                    result.total = parseInt(parts[1].split(':')[1].trim());
+                    result.free = parseInt(parts[0].split(':')[1].trim());
                     result.used = result.total - result.free;
-                    result.status = disk_info[2];
                     
                     if (result.status === 'NOTFOUND') {
                         error = new Error('Drive not found');

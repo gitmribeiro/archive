@@ -40,6 +40,37 @@ class SnapshotService {
 
 
     /**
+     * Valida se o arquivo foi modificado consultado os metadados
+     * @param plan plano de backup
+     * @param line dados da linha do snapshot contendo (id, path, creation, modified e size) do arquivo
+     * @param source opcional contém o path backup planejado
+     */
+    private async changedFile(plan: any, line: string, source?: any) {
+        return new Promise((resolve) => {
+            try {
+
+                const snapshotData = this.getSnapshotData(line);
+
+                const metadataPath = path.normalize(`${utils.getDataPath()}/plans/${plan.id}/stats/${moment(parseInt(snapshotData.creation.toString())).format('YYYYMMDD')}/${snapshotData.id}`);
+
+                if (fs.existsSync(metadataPath)) {
+                    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
+
+                    if (snapshotData.size == metadata.size && snapshotData.modified == metadata.modified) {
+                        return resolve(false);
+                    }
+                }
+
+                return resolve(true);
+            } catch (err) {
+                logger.error('Ocorreu um erro na verificação de alteração do arquivo! Message: ' + err);
+                return resolve(true);
+            }
+        });
+    }
+
+
+    /**
      * Executa snapshot
      * @param plan objeto representando um plano
      */
@@ -63,6 +94,8 @@ class SnapshotService {
                 let sourcePath = path.normalize(source.path + '/' + source.search);
 
                 if (fs.existsSync(path.dirname(sourcePath))) {
+
+                    logger.debug('[OK] Executando snapshot');
 
                     const snap = cp.spawn('dir', [`"${sourcePath}" /A-D /B /S 2>&1`], { shell: true });
 
@@ -106,37 +139,6 @@ class SnapshotService {
         } catch (err) {
             logger.error('[X] Ocorreu um erro ao executar o snapshot! Message: ' + err.message);
         }
-    }
-
-
-    /**
-     * Valida se o arquivo foi modificado consultado os metadados
-     * @param plan plano de backup
-     * @param line dados da linha do snapshot contendo (id, path, creation, modified e size) do arquivo
-     * @param source opcional contém o path backup planejado
-     */
-    private async changedFile(plan: any, line: string, source?: any) {
-        return new Promise((resolve) => {
-            try {
-
-                const snapshotData = this.getSnapshotData(line);
-
-                const metadataPath = path.normalize(`${utils.getDataPath()}/plans/${plan.id}/stats/${moment(parseInt(snapshotData.creation.toString())).format('YYYYMMDD')}/${snapshotData.id}`);
-
-                if (fs.existsSync(metadataPath)) {
-                    const metadata = JSON.parse(fs.readFileSync(metadataPath, 'utf8'));
-
-                    if (snapshotData.size == metadata.size && snapshotData.modified == metadata.modified) {
-                        return resolve(false);
-                    }
-                }
-
-                return resolve(true);
-            } catch (err) {
-                logger.error('Ocorreu um erro na verificação de alteração do arquivo! Message: ' + err);
-                return resolve(true);
-            }
-        });
     }
 
 
@@ -332,7 +334,7 @@ class SnapshotService {
                     logger.error('[X] Erro ao calcular espaço no drive - Message: ' + err.message);
                     return resolve(false);
                 }
-                
+
                 let isFreeSpace = Math.round((info.free * this.CFG.drive.maxFreeSpace)/100) > 0;
                 
                 if (isFreeSpace) {

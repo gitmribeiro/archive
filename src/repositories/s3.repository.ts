@@ -102,7 +102,7 @@ export class S3Repository implements IStorage {
                     const response = await this.s3.upload(params).promise();
 
                     if (response && response.ETag != "" && response.Location != "") {
-                        logger.debug(`[OK] Armazenado: ${src}`);
+                        logger.debug(`[OK] Armazenado: ${path.basename(src)}`);
 
                         await driveService.removeFromDrive(src);
                         return resolve(true);
