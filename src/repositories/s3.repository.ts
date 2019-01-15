@@ -33,10 +33,12 @@ export class S3Repository implements IStorage {
                 this.cfg = await utils.CFG();
             }
 
+            let credentials = utils.decrypt(this.cfg.provider.s3.credential).split(':');
+
             config.update({
-                accessKeyId:     this.cfg.storageProviderAK,
-                secretAccessKey: this.cfg.storageProviderSK,
-                region:          this.cfg.storageProviderRegion,
+                accessKeyId:     credentials[0],
+                secretAccessKey: credentials[1],
+                region:          this.cfg.provider.s3.region || 'sa-east-1',
             });
 
             this.s3 = new S3({apiVersion: '2006-03-01'});
@@ -83,6 +85,40 @@ export class S3Repository implements IStorage {
         });
     }
 
+    private async send(src: string) {
+        return new Promise(async(resolve) => {
+            try {
+
+                src = src.replace(/\\/g, '/');
+                
+                let stat = fs.statSync(src);
+                
+                if (stat.isFile()) {
+                    let fileDir = path.normalize(path.dirname(src));
+                    let filePathStorage = fileDir.replace(path.normalize(`${utils.getDrivePath()}/`), '');
+                    
+                    let params = {
+                        Bucket: `wttarchive.${this.cfg.service.networkid}/drive/${filePathStorage}`,
+                        Key: path.basename(src),
+                        Body: fs.createReadStream(src)
+                    }
+
+                    const response = await this.s3.upload(params).promise();
+
+                    if (response && response.ETag != "" && response.Location != "") {
+                        logger.info(`Transferido: ${path.basename(src)}`);
+                        await driveService.removeFromDrive(src);
+                    }
+                }
+
+                return resolve(true);
+            } catch (err) {
+                logger.error(err);
+                return resolve(false);
+            }
+        });
+    }
+
     public async sync() {
         try {
 
@@ -97,37 +133,14 @@ export class S3Repository implements IStorage {
 
                 await utils.cmdExec(`dir "${path.normalize(utils.getDrivePath())}" /A /B /S > "${tmpDrive}" 2>&1`);
                 
-                
                 const rl = new lineByLineReader(tmpDrive, { start: 0, skipEmptyLines: true });
                 
                 rl.on('line', async (line) => {
                     rl.pause();
 
-                    let stat = fs.statSync(line);
-                    if (stat.isFile()) {
-                        logger.info(line);
+                    await this.send(line);
 
-                        let fileDir = path.dirname(line).replace(/\\/g, '/');
-                        let filePathStorage = fileDir.replace(`${utils.getDrivePath()}`.replace(/\\/g, '/'), '');
-                        let fileDetail = fs.lstatSync(line);
-
-                        let params = {
-                            Bucket: `wttarchive.${this.cfg.service.networkid}/drive${filePathStorage}`.replace(/\\/g, ''),
-                            Key: path.basename(filePath),
-                            Body: fs.createReadStream(filePath)
-                        }
-
-                        // tranfere arquivo para storage
-                        const response = await this.s3.upload(params).promise();
-
-                        // remove do drive cada arquivo transferido com sucesso
-                        if (response && response.ETag != "" && response.Location != "") {
-                            await fs.unlinkSync(filePath);
-                            console.log(`Sending: ${path.basename(filePath)}`);
-                        }
-                    }
-
-                    await driveService.rmFilesInDrive(line);
+                    // await driveService.removeFromDrive(line);
 
                     rl.resume();
                 }).on('error', (err) => {

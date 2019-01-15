@@ -64,7 +64,7 @@ class SnapshotService {
 
                 if (fs.existsSync(path.dirname(sourcePath))) {
 
-                    const snap = cp.spawn('dir', [`${sourcePath} /A-D /B /S 2>&1`], { shell: true });
+                    const snap = cp.spawn('dir', [`"${sourcePath}" /A-D /B /S 2>&1`], { shell: true });
 
                     const rl = readline.createInterface({
                         input: snap.stdout,

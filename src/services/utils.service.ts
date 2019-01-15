@@ -33,7 +33,7 @@ class Utils {
 
 
     public getDrivePath() {
-        return this.CFG().drive.path || `${this.getRootPath()}/drive`;
+        return path.normalize(this.CFG().drive.path || `${this.getRootPath()}/drive`);
     }
 
 

@@ -18,12 +18,14 @@ class DriveService {
     private scanPath: string;
 
     constructor() {
-        this.load();
         this.iStorage = new S3Repository();
+        this.load();
     }
-
-
+    
+    
     private async load() {
+        this.iStorage.checkCredentials();
+
         this.scanPath = utils.getDrivePath();
         await utils.mkdirRecursiveSync(this.scanPath);
     }
@@ -57,12 +59,15 @@ class DriveService {
         });
     }
 
-    public async rmFilesInDrive(src: string) {
+    public async removeFromDrive(src: string) {
         return new Promise(async (resolve) => {
             try {
+                
+                logger.info('Removendo: ' + src);
 
                 if (fs.existsSync(src)) {
                     let stat = fs.statSync(src);
+
                     
                     if (stat.isFile()) {
                         fs.unlinkSync(src);
