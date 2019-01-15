@@ -5,3 +5,6 @@ daemon
 build
 dist
 plans
+tmp
+plans.json
+config.json
