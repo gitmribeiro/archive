@@ -167,6 +167,9 @@ class DicomService {
                 if (fileDetail.compression.dicom === 'LOSSLESS' || fileDetail.compression.dicom === 'LOSSY') {
                     let output: any;
 
+                    // lock para controlar melhor os processos paralelos
+                    await utils.inProgress(true);
+
                     if (fileDetail.compression.dicom === 'LOSSLESS') {
                         fileDetail.compression.compressed = true;
 
@@ -194,7 +197,7 @@ class DicomService {
                         if (bitsAllocated.length > 0) {
                             bitsAllocated = bitsAllocated[0];
                         }
-                        
+
                         // acima de 8 = lossy 16bits | senao lossy 8bits
                         if (bitsAllocated > 8) {
                             
@@ -206,6 +209,9 @@ class DicomService {
                             output = await this.execute(`dcmcjpeg -v +eb +q ${fileDetail.compression.quality} "${srcFile}" "${fileDetail.tempFile}"`);
                         }
                     }
+
+                    // unlock para liberar processos paralelos
+                    await utils.inProgress(false);
                     
                     // converte saida do console em array para validar o sucesso da operacao
                     if (output) {

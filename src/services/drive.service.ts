@@ -1,8 +1,12 @@
 import * as fs from 'fs';
 import * as path from 'path';
+import * as readline from 'readline';
+import * as cp from 'child_process';
 
 import logger from './logger.service';
 import utils from './utils.service';
+import { IStorage } from '../repositories/storage.interface';
+import { S3Repository } from '../repositories/s3.repository';
 
 
 /**
@@ -10,10 +14,12 @@ import utils from './utils.service';
  */
 class DriveService {
 
+    private iStorage: IStorage;
     private scanPath: string;
 
     constructor() {
         this.load();
+        this.iStorage = new S3Repository();
     }
 
 
@@ -22,8 +28,61 @@ class DriveService {
         await utils.mkdirRecursiveSync(this.scanPath);
     }
 
+    public async hasFilesInDrive() {
+        return new Promise((resolve) => {
+            try {
+
+                let files = 0;
+                const snap = cp.spawn('dir', [`${path.normalize(utils.getDrivePath())} /A /B /S 2>&1`], { shell: true });
+
+                const rl = readline.createInterface({
+                    input: snap.stdout,
+                    terminal: false,
+                    historySize: 0
+                });
+
+                rl.on('line', async (line) => {
+                    if (!line.startsWith('Arquivo ') && !line.startsWith('File ')) {
+                        files++;
+                    }
+                    if (files > 0) {
+                        rl.close();
+                        return resolve(true);
+                    }
+                });
+                
+            } catch (err) {
+                return resolve(false);
+            }
+        });
+    }
+
+    public async rmFilesInDrive(src: string) {
+        return new Promise(async (resolve) => {
+            try {
+
+                if (fs.existsSync(src)) {
+                    let stat = fs.statSync(src);
+                    
+                    if (stat.isFile()) {
+                        fs.unlinkSync(src);
+                    } else {
+                        let folderIsEmpty = await utils.folderIsEmpty(src);
+                        if (folderIsEmpty && await utils.inProgress() === false) {
+                            fs.rmdirSync(src);
+                        }
+                    }
+                }
+
+                return resolve(true);
+            } catch (err) {
+                logger.error(err);
+            }
+        });
+    }
+
     public async scan() {
-        // logger.info('Drive!');
+        this.iStorage.sync();
     }
 
 }

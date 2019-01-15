@@ -4,7 +4,7 @@
 export interface IStorage {
 
     checkCredentials(): void;
-    listAllFiles(folder?: string): Array<any>;
+    listAllFiles(folder?: string): any;
     sync(): void;
 
 }

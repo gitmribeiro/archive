@@ -5,7 +5,6 @@ import * as readline from 'readline';
 import * as moment from 'moment';
 import * as readdir from 'readdir-enhanced';
 import * as lineByLineReader from 'line-by-line';
-import * as disk from 'diskusage';
 
 import logger from './logger.service';
 import utils from './utils.service';
@@ -329,24 +328,26 @@ class SnapshotService {
      */
     private hasFreeSpace() {
         return new Promise((resolve) => {
-            disk.check(utils.getDrivePath(), (err, info) => {
-                if (err) {
-                    logger.error('[X] Erro ao calcular espaço no drive - Message: ' + err.message);
-                    return resolve(false);
-                }
+            // disk.check(utils.getDrivePath(), (err, info) => {
+            //     if (err) {
+            //         logger.error('[X] Erro ao calcular espaço no drive - Message: ' + err.message);
+            //         return resolve(false);
+            //     }
                 
-                let isFreeSpace = Math.round((info.free * this.CFG.drive.maxFreeSpace)/100) > 0;
+            //     let isFreeSpace = Math.round((info.free * this.CFG.drive.maxFreeSpace)/100) > 0;
                 
-                if (isFreeSpace) {
-                    return resolve(isFreeSpace);
-                }
+            //     if (isFreeSpace) {
+            //         return resolve(isFreeSpace);
+            //     }
                 
-                const checkFreeSpace = setTimeout(async() => {
-                    logger.debug('[X] Processo interrompido! Aguardando liberação de espaço no drive.');
-                    await this.hasFreeSpace();
-                    clearTimeout(checkFreeSpace);
-                }, 5000);
-            });
+            //     const checkFreeSpace = setTimeout(async() => {
+            //         logger.debug('[X] Processo interrompido! Aguardando liberação de espaço no drive.');
+            //         await this.hasFreeSpace();
+            //         clearTimeout(checkFreeSpace);
+            //     }, 5000);
+            // });
+
+            return resolve(true);
         });
     }
 
