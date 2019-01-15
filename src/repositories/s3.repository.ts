@@ -1,11 +1,7 @@
 import * as path from 'path';
 import * as fs from 'fs';
-import * as cp from 'child_process';
-import * as readline from 'readline';
-import * as readdir from "readdir-enhanced";
 import * as lineByLineReader from 'line-by-line';
 import { config, S3 } from "aws-sdk";
-import moment = require('moment');
 
 import logger from '../services/logger.service';
 import utils from '../services/utils.service';
@@ -98,7 +94,7 @@ export class S3Repository implements IStorage {
                     let filePathStorage = fileDir.replace(path.normalize(`${utils.getDrivePath()}/`), '');
                     
                     let params = {
-                        Bucket: `wttarchive.${this.cfg.service.networkid}/drive/${filePathStorage}`,
+                        Bucket: `wttarchive.${this.cfg.service.networkid}/drive/${filePathStorage}`.replace(/\\/g, '/'),
                         Key: path.basename(src),
                         Body: fs.createReadStream(src)
                     }
@@ -106,12 +102,15 @@ export class S3Repository implements IStorage {
                     const response = await this.s3.upload(params).promise();
 
                     if (response && response.ETag != "" && response.Location != "") {
-                        logger.info(`Transferido: ${path.basename(src)}`);
-                        await driveService.removeFromDrive(src);
-                    }
-                }
+                        logger.debug(`[OK] Armazenado: ${src}`);
 
-                return resolve(true);
+                        await driveService.removeFromDrive(src);
+                        return resolve(true);
+                    }
+                } else {
+                    await driveService.removeFromDrive(src);
+                    return resolve(true);
+                }
             } catch (err) {
                 logger.error(err);
                 return resolve(false);
@@ -122,7 +121,7 @@ export class S3Repository implements IStorage {
     public async sync() {
         try {
 
-            // busca todos os arquivos presentes no drive - await driveService.hasFilesInDrive()
+            // busca todos os arquivos presentes no drive
             if (this.sending === false && await driveService.hasFilesInDrive()) {
 
                 this.sending = true;
@@ -140,8 +139,6 @@ export class S3Repository implements IStorage {
 
                     await this.send(line);
 
-                    // await driveService.removeFromDrive(line);
-
                     rl.resume();
                 }).on('error', (err) => {
                     logger.error(err);
@@ -152,50 +149,6 @@ export class S3Repository implements IStorage {
                         fs.unlinkSync(tmpDrive);
                     }
                 });
-
-
-
-
-                // const files = await utils.getDriveFilesRecursive();
-                
-                /*
-                // existem arquivos no drive (transfere)
-                if (files.length > 0) {
-                    this.sending = true;
-                    
-                    await utils.forEach(files, async(filePath: string) => {
-
-                        let fileDir = path.dirname(filePath).replace(/\\/g, '/');
-                        let filePathStorage = fileDir.replace(`${utils.getDrivePath()}`.replace(/\\/g, '/'), '');
-                        let fileDetail = fs.lstatSync(filePath);
-
-                        if (fileDetail.isFile()) {
-
-                            let params = {
-                                Bucket: `wttarchive.${this.cfg.service.networkid}/drive${filePathStorage}`.replace(/\\/g, ''),
-                                Key: path.basename(filePath),
-                                Body: fs.createReadStream(filePath)
-                            }
-
-                            // tranfere arquivo para storage
-                            const response = await this.s3.upload(params).promise();
-
-                            // remove do drive cada arquivo transferido com sucesso
-                            if (response && response.ETag != "" && response.Location != "") {
-                                await fs.unlinkSync(filePath);
-                                console.log(`Sending: ${path.basename(filePath)}`);
-                            }
-                        } else {
-                            let folderIsEmpty = await utils.folderIsEmpty(filePath);
-                            if (folderIsEmpty) {
-                                fs.rmdirSync(filePath);
-                            }
-                        }
-                    });
-
-                    this.sending = false;
-                }
-                */
             }
         } catch (err) {
             this.sending = false;

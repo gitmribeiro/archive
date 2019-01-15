@@ -190,10 +190,15 @@ class DicomService {
                         fileDetail.compression.compressed = true;
 
                         // obtem tag de bits alocados
-                        let bitsAllocatedElement = dataSet.elements.x00280100 || { dataOffset: 8, length: 0 };
+                        let bitsAllocatedElement = dataSet.elements.x00280100; // || { dataOffset: 8, length: 0 };
+
+                        // FIX: Em analise (path do arquivo nao reconhecido para inspecionar)
+                        if (!bitsAllocatedElement || !bitsAllocatedElement.dataOffset) {
+                            fs.writeFileSync(`${utils.getDataPath()}/tmp/invalid_tags.log`, null, 'utf8');
+                        }
 
                         // extrai bits alocados do arquivo dicom
-                        let bitsAllocated: any = new Uint8Array(dataSet.byteArray.buffer, bitsAllocatedElement.dataOffset, bitsAllocatedElement.length) || [8, 0];
+                        let bitsAllocated: any = new Uint8Array(dataSet.byteArray.buffer, bitsAllocatedElement.dataOffset, bitsAllocatedElement.length);
                         if (bitsAllocated.length > 0) {
                             bitsAllocated = bitsAllocated[0];
                         }

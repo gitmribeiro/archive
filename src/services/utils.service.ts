@@ -156,6 +156,7 @@ class Utils {
         try {
             return cp.execSync(cmd, { encoding: 'latin1' });
         } catch (err) {
+            logger.error('Erro ao executar o comando! Message: ' + err.message);
             return err.message;
         }
     }
@@ -249,7 +250,6 @@ class Utils {
     }
 
     public async getDisk(drive: string, callback: Function) {
-
         let result = {
             total: 0,
             used: 0,
@@ -263,12 +263,9 @@ class Utils {
             return callback ? callback(err, result) : logger.error(err);
         }
 
-        if (os.type.toString() == 'Windows_NT') {
-            if (drive.length <= 3) {
-                drive = drive.charAt(0);
-            }
-
-            cp.execFile(path.normalize(`${this.getResourcePath()}/vendors/drivespace/drivespace.exe`), [`drive-${drive}`], (error: Error, stdout: any, stderr: any) => {
+        if (String(os.type) === "Windows_NT") {
+            
+            cp.exec(`"${path.normalize(this.getResourcePath())}/vendors/drivespace/drivespace.exe" drive-${drive.charAt(0)}`, (error: Error, stdout: any, stderr: any) => {
                 if (error) {
                     result.status = 'STDERR';
                 } else {
@@ -277,13 +274,13 @@ class Utils {
                     result.free = disk_info[1];
                     result.used = result.total - result.free;
                     result.status = disk_info[2];
-
+                    
                     if (result.status === 'NOTFOUND') {
                         error = new Error('Drive not found');
                     }
                 }
-
-                callback ? callback(error, result) : logger.error(stderr);
+                
+                callback(error, result);
             });
         } else {
             cp.exec(`df -k '${drive.replace(/'/g, "'\\''")}'`, (error: Error, stdout: any, stderr: any) => {
@@ -309,7 +306,6 @@ class Utils {
                 }
             });
         }
-
     }
 
 }

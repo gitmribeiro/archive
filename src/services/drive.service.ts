@@ -34,15 +34,15 @@ class DriveService {
         return new Promise((resolve) => {
             try {
 
-                let files = 0;
                 const snap = cp.spawn('dir', [`${path.normalize(utils.getDrivePath())} /A /B /S 2>&1`], { shell: true });
-
+                
+                let files = 0;
                 const rl = readline.createInterface({
                     input: snap.stdout,
                     terminal: false,
                     historySize: 0
                 });
-
+                
                 rl.on('line', async (line) => {
                     if (!line.startsWith('Arquivo ') && !line.startsWith('File ')) {
                         files++;
@@ -52,8 +52,8 @@ class DriveService {
                         return resolve(true);
                     }
                 });
-                
             } catch (err) {
+                logger.error('Erro ao executar o comando! Message: ' + err.message);
                 return resolve(false);
             }
         });
@@ -63,11 +63,8 @@ class DriveService {
         return new Promise(async (resolve) => {
             try {
                 
-                logger.info('Removendo: ' + src);
-
                 if (fs.existsSync(src)) {
                     let stat = fs.statSync(src);
-
                     
                     if (stat.isFile()) {
                         fs.unlinkSync(src);

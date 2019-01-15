@@ -102,8 +102,6 @@ class SnapshotService {
                 } else {
                     throw Error('O source do plano nao foi localizado!');
                 }
-
-                // sourceIdx++;
             }
         } catch (err) {
             logger.error('[X] Ocorreu um erro ao executar o snapshot! Message: ' + err.message);
@@ -179,7 +177,6 @@ class SnapshotService {
                         rl.on('line', async (line) => {
                             rl.pause();
 
-                            logger.info(`Processando: ${line}`);
                             line = await this.readAndProcess(plan, line);
                             wl.write(`${line}\n`, 'utf8');
 
@@ -219,6 +216,8 @@ class SnapshotService {
             try {
 
                 const snapshotData = this.getSnapshotData(line);
+                
+                logger.debug(`[OK] Processando: ${path.basename(snapshotData.path)}`);
                 let statsPath = path.normalize(`${utils.getDataPath()}/plans/${plan.id}/stats/${moment(parseInt(snapshotData.creation.toString())).format('YYYYMMDD')}`);
                 await utils.mkdirRecursiveSync(statsPath);
 
@@ -328,26 +327,24 @@ class SnapshotService {
      */
     private hasFreeSpace() {
         return new Promise((resolve) => {
-            // disk.check(utils.getDrivePath(), (err, info) => {
-            //     if (err) {
-            //         logger.error('[X] Erro ao calcular espaço no drive - Message: ' + err.message);
-            //         return resolve(false);
-            //     }
+            utils.getDisk(utils.getDrivePath(), (err: Error, info: any) => {
+                if (err) {
+                    logger.error('[X] Erro ao calcular espaço no drive - Message: ' + err.message);
+                    return resolve(false);
+                }
                 
-            //     let isFreeSpace = Math.round((info.free * this.CFG.drive.maxFreeSpace)/100) > 0;
+                let isFreeSpace = Math.round((info.free * this.CFG.drive.maxFreeSpace)/100) > 0;
                 
-            //     if (isFreeSpace) {
-            //         return resolve(isFreeSpace);
-            //     }
+                if (isFreeSpace) {
+                    return resolve(isFreeSpace);
+                }
                 
-            //     const checkFreeSpace = setTimeout(async() => {
-            //         logger.debug('[X] Processo interrompido! Aguardando liberação de espaço no drive.');
-            //         await this.hasFreeSpace();
-            //         clearTimeout(checkFreeSpace);
-            //     }, 5000);
-            // });
-
-            return resolve(true);
+                const checkFreeSpace = setTimeout(async() => {
+                    logger.debug('[X] Processo interrompido! Aguardando liberação de espaço no drive.');
+                    await this.hasFreeSpace();
+                    clearTimeout(checkFreeSpace);
+                }, 5000);
+            });
         });
     }
 
